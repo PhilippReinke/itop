@@ -39,7 +39,10 @@ func CheckService(runner Runner) (ServiceState, error) {
 		case "not running", "notrunning", "stopped", "unregistered":
 			return ServiceStopped, nil
 		}
-		if payload.APIServerVersion != "" || payload.APIServerCommit != "" || payload.APIServerBuild != "" || payload.APIServerAppName != "" {
+		if payload.APIServerVersion != "" ||
+			payload.APIServerCommit != "" ||
+			payload.APIServerBuild != "" ||
+			payload.APIServerAppName != "" {
 			return ServiceRunning, nil
 		}
 		if strings.Contains(string(output), "apiServerVersion") {
@@ -51,7 +54,11 @@ func CheckService(runner Runner) (ServiceState, error) {
 	if runErr != nil {
 		message += " " + strings.ToLower(runErr.Error())
 	}
-	for _, phrase := range []string{"not running", "notrunning", "stopped", "unregistered", "not registered with launchd"} {
+	stoppedPhrases := []string{
+		"not running", "notrunning", "stopped",
+		"unregistered", "not registered with launchd",
+	}
+	for _, phrase := range stoppedPhrases {
 		if strings.Contains(message, phrase) {
 			return ServiceStopped, nil
 		}
@@ -59,5 +66,7 @@ func CheckService(runner Runner) (ServiceState, error) {
 	if runErr != nil {
 		return ServiceUnknown, runErr
 	}
-	return ServiceUnknown, errors.New("container system status returned an unknown response")
+	return ServiceUnknown, errors.New(
+		"container system status returned an unknown response",
+	)
 }

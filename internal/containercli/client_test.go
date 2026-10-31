@@ -32,7 +32,9 @@ func TestDecodeAppleResourceShapes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(rows) != 1 || rows[0].ID != tt.id || rows[0].State != tt.state || rows[0].Detail != tt.detail {
+			if len(rows) != 1 || rows[0].ID != tt.id ||
+				rows[0].State != tt.state ||
+				rows[0].Detail != tt.detail {
 				t.Fatalf("rows = %#v", rows)
 			}
 		})
@@ -47,11 +49,14 @@ func TestUnknownResourceShapeIsError(t *testing.T) {
 }
 
 func TestCommandArguments(t *testing.T) {
-	if got := listArgs("containers"); !reflect.DeepEqual(got, []string{"list", "--all", "--format", "json"}) {
+	wantList := []string{"list", "--all", "--format", "json"}
+	if got := listArgs("containers"); !reflect.DeepEqual(got, wantList) {
 		t.Fatal(got)
 	}
-	if got := DeleteArgs("images", "alpine:latest"); !reflect.DeepEqual(got, []string{"image", "delete", "alpine:latest"}) {
-		t.Fatal(got)
+	wantDelete := []string{"image", "delete", "alpine:latest"}
+	gotDelete := DeleteArgs("images", "alpine:latest")
+	if !reflect.DeepEqual(gotDelete, wantDelete) {
+		t.Fatal(gotDelete)
 	}
 }
 
@@ -72,8 +77,15 @@ func TestCheckService(t *testing.T) {
 		want   ServiceState
 	}{
 		{"running", `{"status":"running"}`, nil, ServiceRunning},
-		{"stopped 1.0", `{"apiServerVersion":"","status":"not running"}`, errors.New("exit status 1"), ServiceStopped},
-		{"unregistered current", `{"status":"unregistered"}`, errors.New("exit status 1"), ServiceStopped},
+		{
+			"stopped 1.0",
+			`{"apiServerVersion":"","status":"not running"}`,
+			errors.New("exit status 1"), ServiceStopped,
+		},
+		{
+			"unregistered current", `{"status":"unregistered"}`,
+			errors.New("exit status 1"), ServiceStopped,
+		},
 		{"denied", "", errors.New("Operation not permitted"), ServiceUnknown},
 		{"unknown response", `{}`, nil, ServiceUnknown},
 	}
@@ -90,12 +102,17 @@ func TestCheckService(t *testing.T) {
 func TestCLIProvidesJSONOnFailure(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "container")
-	contents := "#!/bin/sh\nprintf '%s\\n' '{\"status\":\"not running\"}'\nexit 1\n"
+	contents := `#!/bin/sh
+printf '%s\n' '{"status":"not running"}'
+exit 1
+`
 	if err := os.WriteFile(script, []byte(contents), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	output, err := (CLI{}).Run(context.Background(), "system", "status", "--format", "json")
+	output, err := (CLI{}).Run(
+		context.Background(), "system", "status", "--format", "json",
+	)
 	if err == nil || !strings.Contains(string(output), `"not running"`) {
 		t.Fatalf("output = %q, error = %v", output, err)
 	}

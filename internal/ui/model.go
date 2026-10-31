@@ -23,15 +23,16 @@ type listMsg struct {
 }
 
 type actionMsg struct {
-	label  string
-	output string
-	err    error
+	label    string
+	output   string
+	err      error
+	external bool
 }
 
 type panelMsg struct {
-	title string
-	body  string
-	err   error
+	id   uint64
+	body string
+	err  error
 }
 
 type tickMsg struct{}
@@ -53,6 +54,9 @@ type model struct {
 	panelTitle        string
 	panelBody         string
 	panelScroll       int
+	panelArgs         []string
+	panelID           uint64
+	panelLoading      bool
 
 	pending      []string
 	pendingLabel string
@@ -157,11 +161,26 @@ func (m model) operation(args []string, label string) tea.Cmd {
 	}
 }
 
-func (m model) panel(args []string, title string) tea.Cmd {
+func (m *model) openPanel(args []string, title string) tea.Cmd {
+	m.panelID++
+	m.panelTitle = title
+	m.panelBody = ""
+	m.panelScroll = 0
+	m.panelArgs = append([]string(nil), args...)
+	m.panelLoading = true
+	m.mode = "panel"
+	return m.fetchPanel()
+}
+
+func (m model) fetchPanel() tea.Cmd {
 	cli := m.cli
+	args := append([]string(nil), m.panelArgs...)
+	id := m.panelID
 	return func() tea.Msg {
 		output, err := containercli.Run(cli, args...)
-		return panelMsg{title: title, body: containercli.PrettyJSON(output), err: err}
+		return panelMsg{
+			id: id, body: containercli.PrettyJSON(output), err: err,
+		}
 	}
 }
 
@@ -183,7 +202,10 @@ func (m *model) startService() tea.Cmd {
 	m.status = "Starting Apple container service…"
 	cmd := exec.Command("container", "system", "start")
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		return actionMsg{label: "Start container service", err: err}
+		return actionMsg{
+			label: "Start container service",
+			err:   err, external: true,
+		}
 	})
 }
 

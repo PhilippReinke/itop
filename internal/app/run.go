@@ -15,7 +15,12 @@ func Run(args []string) error {
 	if len(args) > 0 {
 		switch args[0] {
 		case "--help", "-h", "help":
-			fmt.Println("itop — Apple container TUI\n\nUsage: itop\n       itop --help\n\nInside the TUI, press ? for all keybindings.")
+			fmt.Println(`itop — Apple container TUI
+
+Usage: itop
+       itop --help
+
+Inside the TUI, press ? for all keybindings.`)
 			return nil
 		default:
 			return fmt.Errorf("unknown argument %q (try --help)", args[0])

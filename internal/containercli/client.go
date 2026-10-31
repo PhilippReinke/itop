@@ -24,12 +24,14 @@ func (CLI) Run(ctx context.Context, args ...string) ([]byte, error) {
 
 	message := strings.TrimSpace(string(output))
 	if message != "" {
-		return output, fmt.Errorf("container %s: %s", strings.Join(args, " "), message)
+		return output, fmt.Errorf(
+			"container %s: %s", strings.Join(args, " "), message,
+		)
 	}
 	return output, fmt.Errorf("container %s: %w", strings.Join(args, " "), err)
 }
 
-// Run executes a command that may take several minutes, such as pulling an image.
+// Run executes a command that may take minutes, such as an image pull.
 func Run(runner Runner, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()

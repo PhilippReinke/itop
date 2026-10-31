@@ -38,7 +38,10 @@ func decodeResources(data []byte, kind string) ([]Resource, error) {
 	items, ok := value.([]any)
 	if !ok {
 		if wrapper, isObject := value.(map[string]any); isObject {
-			for _, key := range []string{"items", "containers", "images", "networks", "volumes"} {
+			keys := []string{
+				"items", "containers", "images", "networks", "volumes",
+			}
+			for _, key := range keys {
 				if candidate, isArray := lookup(wrapper, key).([]any); isArray {
 					items, ok = candidate, true
 					break
@@ -54,7 +57,9 @@ func decodeResources(data []byte, kind string) ([]Resource, error) {
 	for index, item := range items {
 		object, isObject := item.(map[string]any)
 		if !isObject {
-			return nil, fmt.Errorf("unexpected %s item %d: expected an object", kind, index)
+			return nil, fmt.Errorf(
+				"unexpected %s item %d: expected an object", kind, index,
+			)
 		}
 		resource := parseResource(object, kind)
 		if resource.ID == "" {
@@ -72,20 +77,37 @@ func parseResource(object map[string]any, kind string) Resource {
 	var resource Resource
 	switch kind {
 	case "containers":
-		resource.ID = first(field(object, "id", "containerID", "identifier"), path(object, "configuration", "id"))
+		resource.ID = first(
+			field(object, "id", "containerID", "identifier"),
+			path(object, "configuration", "id"),
+		)
 		resource.Name = first(field(object, "name", "names"), resource.ID)
-		resource.State = first(path(object, "status", "state"), field(object, "status", "state"))
-		resource.Detail = first(path(object, "configuration", "image", "reference"), field(object, "image", "imageName"))
+		resource.State = first(
+			path(object, "status", "state"),
+			field(object, "status", "state"),
+		)
+		resource.Detail = first(
+			path(object, "configuration", "image", "reference"),
+			field(object, "image", "imageName"),
+		)
 	case "images":
-		resource.ID = field(object, "displayReference", "reference", "name", "repoTags", "id")
+		resource.ID = field(
+			object, "displayReference", "reference", "name", "repoTags", "id",
+		)
 		resource.Name = resource.ID
 		resource.State = field(object, "size", "sizeBytes")
-		resource.Detail = first(path(object, "configuration", "descriptor", "digest"), field(object, "digest", "id"))
+		resource.Detail = first(
+			path(object, "configuration", "descriptor", "digest"),
+			field(object, "digest", "id"),
+		)
 	case "networks":
 		resource.ID = field(object, "id", "name")
 		resource.Name = resource.ID
 		resource.State = field(object, "driver", "plugin")
-		resource.Detail = first(path(object, "status", "ipv4Subnet"), field(object, "subnet", "ipv4Subnet"))
+		resource.Detail = first(
+			path(object, "status", "ipv4Subnet"),
+			field(object, "subnet", "ipv4Subnet"),
+		)
 	case "volumes":
 		resource.ID = field(object, "name", "id")
 		resource.Name = resource.ID

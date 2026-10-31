@@ -9,14 +9,18 @@ import (
 )
 
 var (
-	brandStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#C4B5FD")).Bold(true)
-	accentStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#8BE9FD")).Bold(true)
+	brandStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#C4B5FD")).Bold(true)
+	accentStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#8BE9FD")).Bold(true)
 	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#8892A6"))
 	textStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#E6E9F0"))
 	goodStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#84E1BC"))
 	warnStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#F9C97C"))
 	badStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF8298"))
-	selectStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#101522")).Background(lipgloss.Color("#8BE9FD")).Bold(true)
+	selectStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#101522")).
+			Background(lipgloss.Color("#8BE9FD")).Bold(true)
 )
 
 func clipWidth(s string, width int) string {
@@ -71,7 +75,9 @@ func stateStyle(state string) lipgloss.Style {
 	if strings.Contains(s, "running") || strings.Contains(s, "active") {
 		return goodStyle
 	}
-	if strings.Contains(s, "error") || strings.Contains(s, "failed") || strings.Contains(s, "dead") {
+	if strings.Contains(s, "error") ||
+		strings.Contains(s, "failed") ||
+		strings.Contains(s, "dead") {
 		return badStyle
 	}
 	return warnStyle
@@ -82,7 +88,8 @@ func (m model) actionHints() string {
 	}
 	switch m.kind() {
 	case "containers":
-		return "↵ inspect   l logs   v stats   e shell   s start   x stop   d delete"
+		return "↵ inspect   l logs   v stats   e shell   " +
+			"s start   x stop   d delete"
 	case "images":
 		return "↵ inspect   n pull   d delete"
 	default:
@@ -112,7 +119,11 @@ func (m model) View() string {
 	if !m.lastRefresh.IsZero() {
 		stamp = "updated " + m.lastRefresh.Format("15:04:05")
 	}
-	b.WriteString(linePair(dimStyle.Render("  LOCAL ENGINE"), dimStyle.Render(stamp+"  ↻ 4s  "), w) + "\n")
+	b.WriteString(linePair(
+		"",
+		dimStyle.Render(stamp+"  ↻ 4s  "),
+		w,
+	) + "\n")
 	b.WriteString(" " + dimStyle.Render(fitWidth(m.actionHints(), w-2)) + "\n")
 	rows := m.visible()
 	name := strings.ToUpper(m.kind())
@@ -127,9 +138,11 @@ func (m model) View() string {
 	if m.mode == "panel" {
 		title = strings.ToUpper(m.panelTitle)
 	}
-	b.WriteString(dimStyle.Render(frameTop(clipWidth(title, max(1, w-6)), w)) + "\n")
+	title = clipWidth(title, max(1, w-6))
+	b.WriteString(dimStyle.Render(frameTop(title, w)) + "\n")
 	if m.mode == "panel" {
-		b.WriteString(frameRow(" "+dimStyle.Render(fitWidth("J/K SCROLL  •  ESC BACK", inner-2))+" ", w) + "\n")
+		help := fitWidth("J/K SCROLL  •  ESC BACK", inner-2)
+		b.WriteString(frameRow(" "+dimStyle.Render(help)+" ", w) + "\n")
 		lines := strings.Split(m.panelBody, "\n")
 		maxScroll := max(0, len(lines)-page)
 		scroll := min(m.panelScroll, maxScroll)
@@ -138,13 +151,19 @@ func (m model) View() string {
 			if scroll+i < len(lines) {
 				content = lines[scroll+i]
 			}
-			b.WriteString(frameRow(" "+textStyle.Render(fitWidth(content, inner-2))+" ", w) + "\n")
+			line := " " + textStyle.Render(fitWidth(content, inner-2)) + " "
+			b.WriteString(frameRow(line, w) + "\n")
 		}
 	} else {
 		nameW := min(36, max(12, inner*39/100))
 		stateW := min(18, max(10, inner*21/100))
 		detailW := max(1, inner-11-nameW-stateW)
-		header := fmt.Sprintf("  %3s  %s  %s  %s", "#", fitWidth("NAME", nameW), fitWidth("STATUS / SIZE", stateW), fitWidth("IMAGE / DETAIL", detailW))
+		header := fmt.Sprintf(
+			"  %3s  %s  %s  %s",
+			"#", fitWidth("NAME", nameW),
+			fitWidth("STATUS / SIZE", stateW),
+			fitWidth("IMAGE / DETAIL", detailW),
+		)
 		b.WriteString(frameRow(dimStyle.Render(fitWidth(header, inner)), w) + "\n")
 		for slot := 0; slot < page; slot++ {
 			i := m.offset + slot
@@ -181,7 +200,9 @@ func (m model) View() string {
 			if i == m.cursor {
 				b.WriteString(frameRow(selectStyle.Render(plain), w) + "\n")
 			} else {
-				body := prefix + textStyle.Render(nameCol) + "  " + stateStyle(r.State).Render(stateCol) + "  " + dimStyle.Render(detailCol)
+				body := prefix + textStyle.Render(nameCol) + "  " +
+					stateStyle(r.State).Render(stateCol) + "  " +
+					dimStyle.Render(detailCol)
 				b.WriteString(frameRow(fitWidth(body, inner), w) + "\n")
 			}
 		}
@@ -212,17 +233,20 @@ func (m model) View() string {
 	case "pull":
 		prompt = "  Pull image › " + m.input + "█"
 	case "create":
-		prompt = "  Create " + strings.TrimSuffix(m.kind(), "s") + " › " + m.input + "█"
+		prompt = "  Create " + strings.TrimSuffix(m.kind(), "s") +
+			" › " + m.input + "█"
 	case "panel":
 		prompt = "  Esc back   J/K scroll   PgUp/PgDn page"
 	}
 	b.WriteString(" " + accentStyle.Render(fitWidth(prompt, w-2)) + "\n")
-	b.WriteString(" " + dimStyle.Render(fitWidth("esc back   j/k move   r refresh   q quit", w-2)))
+	footer := fitWidth("esc back   j/k move   r refresh   q quit", w-2)
+	b.WriteString(" " + dimStyle.Render(footer))
 	return b.String()
 }
 
 const helpText = `Navigation
-  :              Switch resource view (:containers, :images, :networks, :volumes)
+  :              Switch resource view
+                 (:containers, :images, :networks, :volumes)
   j/k or arrows  Move selection
   g / G          First / last item
   /              Filter current view

@@ -5,9 +5,11 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/philippreinke/itop/internal/containercli"
 )
 
@@ -18,6 +20,11 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 	case tickMsg:
+		if m.mode == "panel" && len(m.panelArgs) > 0 &&
+			m.panelArgs[0] == "logs" && !m.panelLoading {
+			m.panelLoading = true
+			return m, tea.Batch(m.fetchPanel(), tick())
+		}
 		if !m.busy && m.mode == "" {
 			return m, tea.Batch(m.load(), tick())
 		}
@@ -26,6 +33,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleList(msg), nil
 	case actionMsg:
 		m.handleAction(msg)
+		if msg.external {
+			return m, tea.Sequence(tea.ClearScreen, m.load())
+		}
 		return m, m.load()
 	case panelMsg:
 		m.handlePanel(msg)
@@ -82,15 +92,34 @@ func (m *model) handleAction(msg actionMsg) {
 }
 
 func (m *model) handlePanel(msg panelMsg) {
+	if m.mode != "panel" || msg.id != m.panelID {
+		return
+	}
+	m.panelLoading = false
 	if msg.err != nil {
 		m.status = msg.err.Error()
 		m.statusError = true
 		return
 	}
-	m.panelTitle = msg.title
-	m.panelBody = msg.body
-	m.panelScroll = 0
-	m.mode = "panel"
+	oldMax := max(0, len(strings.Split(m.panelBody, "\n"))-m.pageSize())
+	followEnd := m.panelScroll >= oldMax
+	m.panelBody = cleanPanelText(msg.body)
+	newMax := max(0, len(strings.Split(m.panelBody, "\n"))-m.pageSize())
+	if len(m.panelArgs) > 0 && m.panelArgs[0] == "logs" && followEnd {
+		m.panelScroll = newMax
+	} else {
+		m.panelScroll = min(m.panelScroll, newMax)
+	}
+}
+
+func cleanPanelText(body string) string {
+	body = ansi.Strip(body)
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) && r != '\n' {
+			return ' '
+		}
+		return r
+	}, body)
 }
 
 func (m model) handleKey(msg tea.KeyMsg) (model, tea.Cmd) {
@@ -110,6 +139,9 @@ func (m model) handlePanelKey(key string) model {
 	switch key {
 	case "esc", "q", "enter":
 		m.mode = ""
+		m.panelID++
+		m.panelArgs = nil
+		m.panelLoading = false
 	case "j", "down":
 		m.panelScroll++
 	case "k", "up":
@@ -189,10 +221,12 @@ func (m model) submitInput() (model, tea.Cmd) {
 	case "run":
 		return m, m.beginAction([]string{"run", "-d", value}, "Run "+value, false)
 	case "pull":
-		return m, m.beginAction([]string{"image", "pull", "--progress", "plain", value}, "Pull "+value, false)
+		args := []string{"image", "pull", "--progress", "plain", value}
+		return m, m.beginAction(args, "Pull "+value, false)
 	case "create":
 		kind := strings.TrimSuffix(m.kind(), "s")
-		return m, m.beginAction([]string{kind, "create", value}, "Create "+value, false)
+		args := []string{kind, "create", value}
+		return m, m.beginAction(args, "Create "+value, false)
 	default:
 		return m, nil
 	}
@@ -256,14 +290,17 @@ func (m model) handleNormalKey(key string) (model, tea.Cmd) {
 		}
 		row, err := m.selected()
 		if err == nil {
-			return m, m.panel(containercli.InspectArgs(m.kind(), row.ID), "Inspect · "+row.Name)
+			args := containercli.InspectArgs(m.kind(), row.ID)
+			command := m.openPanel(args, "Inspect · "+row.Name)
+			return m, command
 		}
 	case "v", "l", "s", "x", "e":
 		return m.handleContainerAction(key)
 	case "d":
 		row, err := m.selected()
 		if err == nil {
-			return m, m.beginAction(containercli.DeleteArgs(m.kind(), row.ID), "Delete "+row.Name, true)
+			args := containercli.DeleteArgs(m.kind(), row.ID)
+			return m, m.beginAction(args, "Delete "+row.Name, true)
 		}
 	}
 	return m, nil
@@ -283,17 +320,28 @@ func (m model) handleContainerAction(key string) (model, tea.Cmd) {
 
 	switch key {
 	case "v":
-		return m, m.panel([]string{"stats", "--format", "json", "--no-stream", row.ID}, "Stats · "+row.Name)
+		args := []string{
+			"stats", "--format", "json", "--no-stream", row.ID,
+		}
+		command := m.openPanel(args, "Stats · "+row.Name)
+		return m, command
 	case "l":
-		return m, m.panel([]string{"logs", "-n", "300", row.ID}, "Logs · "+row.Name)
+		args := []string{"logs", "-n", "300", row.ID}
+		command := m.openPanel(args, "Logs · "+row.Name)
+		return m, command
 	case "s":
 		return m, m.beginAction([]string{"start", row.ID}, "Start "+row.Name, false)
 	case "x":
 		return m, m.beginAction([]string{"stop", row.ID}, "Stop "+row.Name, true)
 	case "e":
+		m.busy = true
+		m.status = "Shell " + row.Name + "…"
 		cmd := exec.Command("container", "exec", "-it", row.ID, "/bin/sh")
 		return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
-			return actionMsg{label: "Shell " + row.Name, err: err}
+			return actionMsg{
+				label: "Shell " + row.Name,
+				err:   err, external: true,
+			}
 		})
 	default:
 		return m, nil
