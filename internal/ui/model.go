@@ -41,6 +41,7 @@ type model struct {
 	cli containercli.Runner
 
 	view              int
+	pickerCursor      int
 	history           []int
 	rows              map[string][]containercli.Resource
 	cursor            int

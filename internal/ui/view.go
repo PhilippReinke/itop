@@ -97,6 +97,9 @@ func (m model) actionHints() string {
 	}
 }
 func (m model) View() string {
+	if m.mode == "picker" {
+		return m.pickerView()
+	}
 	w := max(1, m.width-1)
 	if m.height <= 9 || w < 20 {
 		return clipWidth("itop · resize terminal", w)
@@ -245,8 +248,8 @@ func (m model) View() string {
 }
 
 const helpText = `Navigation
-  :              Switch resource view
-                 (:containers, :images, :networks, :volumes)
+  : enter        Pick a resource in an overlay
+  :name          Open containers, images, networks, or volumes
   j/k or arrows  Move selection
   g / G          First / last item
   /              Filter current view

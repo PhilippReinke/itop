@@ -115,6 +115,8 @@ func (m model) handleKey(msg tea.KeyMsg) (model, tea.Cmd) {
 	switch m.mode {
 	case "panel":
 		return m.handlePanelKey(msg.String()), nil
+	case "picker":
+		return m.handlePickerKey(msg.String())
 	case "confirm":
 		return m.handleConfirmKey(msg.String())
 	case "filter", "command", "run", "pull", "create":
@@ -122,6 +124,22 @@ func (m model) handleKey(msg tea.KeyMsg) (model, tea.Cmd) {
 	default:
 		return m.handleNormalKey(msg.String())
 	}
+}
+
+func (m model) handlePickerKey(key string) (model, tea.Cmd) {
+	switch key {
+	case "esc", "q":
+		m.mode = ""
+	case "j", "down":
+		m.pickerCursor = min(len(kinds)-1, m.pickerCursor+1)
+	case "k", "up":
+		m.pickerCursor = max(0, m.pickerCursor-1)
+	case "enter":
+		m.mode = ""
+		command := m.switchView(m.pickerCursor)
+		return m, command
+	}
+	return m, nil
 }
 
 func (m model) handlePanelKey(key string) model {
@@ -206,7 +224,8 @@ func (m model) submitInput() (model, tea.Cmd) {
 		m.resetSelection()
 		return m, nil
 	case "command":
-		return m, m.command(value)
+		command := m.command(value)
+		return m, command
 	}
 	if value == "" {
 		return m, nil
@@ -384,7 +403,8 @@ func (m *model) command(input string) tea.Cmd {
 	case "system start":
 		return m.startService()
 	case "":
-		return nil
+		m.pickerCursor = m.view
+		m.mode = "picker"
 	default:
 		m.status = "Unknown command: " + input
 		m.statusError = true

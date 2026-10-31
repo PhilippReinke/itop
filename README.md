@@ -31,7 +31,8 @@ Bubble Tea model and rendering. See [TESTING.md](TESTING.md) for checks.
 | --- | --- |
 | `j`/`k`, arrows | Move selection |
 | `/` | Filter current view |
-| `:` | Open `:containers`, `:images`, `:networks`, or `:volumes` |
+| `:` then `Enter` | Pick a resource in an overlay |
+| `:` plus a name | Open `containers`, `images`, `networks`, or `volumes` |
 | `Esc` | Back, or close the current panel or filter |
 | `Enter` or `i` | Inspect selected resource |
 | `l` / `v` | Show container logs / one-shot stats |

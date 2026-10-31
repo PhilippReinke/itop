@@ -31,6 +31,7 @@ Before a release, smoke test on a real Apple container installation:
 | Logs stay open | New lines appear; scrolling up keeps the current position |
 | Images, networks, volumes | List, inspect, create/pull, delete |
 | Narrow or resized terminal | Prompt, status, footer, borders stay visible |
+| Resource picker | `:` Enter opens it; arrows select; Esc closes it |
 | CLI error or unexpected JSON | Error is visible; refresh can recover |
 
 Both `go run ./cmd/itop --help` and `go run main.go --help` should work.

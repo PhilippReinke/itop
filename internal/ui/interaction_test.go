@@ -35,6 +35,73 @@ func TestFilterEscapeRestoresPreviousFilter(t *testing.T) {
 	}
 }
 
+func TestEmptyCommandOpensResourcePicker(t *testing.T) {
+	m := NewModel(&fakeRunner{})
+	m, _ = press(m, tea.KeyMsg{
+		Type: tea.KeyRunes, Runes: []rune{':'},
+	})
+	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.mode != "picker" || m.pickerCursor != m.view {
+		t.Fatalf("picker mode=%q cursor=%d", m.mode, m.pickerCursor)
+	}
+	if !strings.Contains(m.View(), "RESOURCES") ||
+		!strings.Contains(m.View(), "› CONTAINERS") {
+		t.Fatal("resource picker overlay is missing")
+	}
+	m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown})
+	m, command := press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.mode != "" || m.kind() != "images" || command == nil {
+		t.Fatalf("picker did not open images: mode=%q kind=%s",
+			m.mode, m.kind())
+	}
+}
+
+func TestResourcePickerCancelAndTypedCommand(t *testing.T) {
+	m := NewModel(&fakeRunner{})
+	m, _ = press(m, tea.KeyMsg{
+		Type: tea.KeyRunes, Runes: []rune{':'},
+	})
+	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.mode != "" || m.kind() != "containers" {
+		t.Fatal("Escape did not close the picker")
+	}
+	m, _ = press(m, tea.KeyMsg{
+		Type: tea.KeyRunes, Runes: []rune{':'},
+	})
+	for _, r := range "volumes" {
+		m, _ = press(m, tea.KeyMsg{
+			Type: tea.KeyRunes, Runes: []rune{r},
+		})
+	}
+	m, command := press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.mode != "" || m.kind() != "volumes" || command == nil {
+		t.Fatal("typed resource command did not switch views")
+	}
+}
+
+func TestResourcePickerFitsTerminal(t *testing.T) {
+	for _, size := range []struct{ width, height int }{
+		{80, 24}, {44, 14}, {30, 10},
+	} {
+		m := NewModel(&fakeRunner{})
+		m.width, m.height = size.width, size.height
+		m.mode = "picker"
+		lines := strings.Split(m.View(), "\n")
+		if len(lines) >= size.height {
+			t.Fatalf("picker has %d rows in %d", len(lines), size.height)
+		}
+		for _, line := range lines {
+			if lipgloss.Width(line) >= size.width {
+				t.Fatalf("picker exceeds %d columns", size.width)
+			}
+		}
+		if !strings.Contains(lines[len(lines)-4], "╰") {
+			t.Fatal("picker hid the main bottom border")
+		}
+	}
+}
+
 func TestDeleteRequiresConfirmation(t *testing.T) {
 	runner := &fakeRunner{}
 	m := NewModel(runner)
