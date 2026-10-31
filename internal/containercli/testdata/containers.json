@@ -1,0 +1,9 @@
+[
+  {
+    "configuration": {
+      "id": "web",
+      "image": { "reference": "docker.io/library/nginx:latest" }
+    },
+    "status": { "state": "running" }
+  }
+]

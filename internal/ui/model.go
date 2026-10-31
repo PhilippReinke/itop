@@ -39,19 +39,20 @@ type tickMsg struct{}
 type model struct {
 	cli containercli.Runner
 
-	view        int
-	history     []int
-	rows        map[string][]containercli.Resource
-	cursor      int
-	offset      int
-	width       int
-	height      int
-	filter      string
-	mode        string
-	input       string
-	panelTitle  string
-	panelBody   string
-	panelScroll int
+	view              int
+	history           []int
+	rows              map[string][]containercli.Resource
+	cursor            int
+	offset            int
+	width             int
+	height            int
+	filter            string
+	filterBeforeInput string
+	mode              string
+	input             string
+	panelTitle        string
+	panelBody         string
+	panelScroll       int
 
 	pending      []string
 	pendingLabel string

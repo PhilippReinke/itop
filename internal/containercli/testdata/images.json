@@ -1,0 +1,8 @@
+[
+  {
+    "displayReference": "docker.io/library/alpine:latest",
+    "configuration": {
+      "descriptor": { "digest": "sha256:abcd" }
+    }
+  }
+]

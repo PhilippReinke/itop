@@ -4,14 +4,16 @@ A k9s-inspired, keyboard driven TUI for [Apple container](https://github.com/app
 
 ## Install
 
-Requires Apple container installed and its system service running. Build with Go 1.24 or newer:
+Requires Apple container installed. Build with Go 1.24 or newer:
 
 ```sh
-go run main.go
-# or: go build -o itop . && ./itop
+go run ./cmd/itop
+# or: go build -o itop ./cmd/itop && ./itop
 ```
 
-Run `go run main.go --help` for command line help. You can also install the published module with `go install github.com/philippreinke/itop@latest`.
+Run `go run ./cmd/itop --help` for command line help. The root `main.go` remains as a compatibility entry point for `go run main.go`. Once this structure is published, install with `go install github.com/philippreinke/itop/cmd/itop@latest`.
+
+The code is split into `cmd/itop` (entry point), `internal/app` (startup), `internal/containercli` (Apple container commands and JSON parsing), and `internal/ui` (Bubble Tea model and rendering). See [TESTING.md](TESTING.md) for checks and a manual test matrix.
 
 ## Keys
 

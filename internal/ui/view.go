@@ -2,9 +2,10 @@ package ui
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/philippreinke/itop/internal/containercli"
-	"strings"
 )
 
 var (

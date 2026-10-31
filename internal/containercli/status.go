@@ -3,6 +3,7 @@ package containercli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 )
@@ -58,5 +59,5 @@ func CheckService(runner Runner) (ServiceState, error) {
 	if runErr != nil {
 		return ServiceUnknown, runErr
 	}
-	return ServiceRunning, nil
+	return ServiceUnknown, errors.New("container system status returned an unknown response")
 }

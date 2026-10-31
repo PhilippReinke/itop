@@ -2,11 +2,12 @@ package app
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/philippreinke/itop/internal/containercli"
 	"github.com/philippreinke/itop/internal/ui"
-	"os"
-	"os/exec"
 )
 
 // Run starts the itop command with the provided arguments.

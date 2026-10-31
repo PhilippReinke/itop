@@ -29,7 +29,9 @@ func List(runner Runner, kind string) ([]Resource, error) {
 
 func decodeResources(data []byte, kind string) ([]Resource, error) {
 	var value any
-	if err := json.Unmarshal(data, &value); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
 		return nil, fmt.Errorf("decode %s list: %w", kind, err)
 	}
 
@@ -129,8 +131,8 @@ func field(object map[string]any, keys ...string) string {
 			if value != "" {
 				return value
 			}
-		case float64:
-			return fmt.Sprint(value)
+		case json.Number:
+			return value.String()
 		case []any:
 			if len(value) > 0 {
 				return fmt.Sprint(value[0])

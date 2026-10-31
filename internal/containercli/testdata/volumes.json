@@ -1,0 +1,7 @@
+[
+  {
+    "name": "db",
+    "driver": "local",
+    "sizeInBytes": 1048576
+  }
+]
