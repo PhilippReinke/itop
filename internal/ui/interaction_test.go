@@ -104,6 +104,44 @@ func TestLogPanelKeepsBottomBorder(t *testing.T) {
 	}
 }
 
+func TestLogBackspaceErasesWithinItsLine(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"abc\bX", "abX"},
+		{"abc\b \bX", "abX"},
+		{"a\n\bX", "a\nX"},
+		{"ä\bX", "X"},
+		{"abc\x7fX", "abX"},
+	}
+	for _, test := range tests {
+		if got := cleanPanelText(test.input); got != test.want {
+			t.Errorf("cleanPanelText(%q) = %q, want %q",
+				test.input, got, test.want)
+		}
+	}
+}
+
+func TestLogScrollClampsAtBottom(t *testing.T) {
+	m := NewModel(&fakeRunner{})
+	m.mode = "panel"
+	m.panelBody = strings.Repeat("line\n", 30)
+	m.panelScroll = m.maxPanelScroll()
+	m, _ = press(m, tea.KeyMsg{
+		Type: tea.KeyRunes, Runes: []rune{'j'},
+	})
+	if m.panelScroll != m.maxPanelScroll() {
+		t.Fatal("scroll moved beyond the last log line")
+	}
+	m, _ = press(m, tea.KeyMsg{
+		Type: tea.KeyRunes, Runes: []rune{'k'},
+	})
+	if m.panelScroll != m.maxPanelScroll()-1 {
+		t.Fatal("scroll up did not move immediately")
+	}
+}
+
 func TestLogsRefreshWhileOpen(t *testing.T) {
 	runner := &fakeRunner{list: []byte(strings.Repeat("old\n", 30))}
 	m := NewModel(runner)

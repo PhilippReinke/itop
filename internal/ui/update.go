@@ -5,11 +5,9 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/philippreinke/itop/internal/containercli"
 )
 
@@ -18,6 +16,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.panelScroll = min(m.panelScroll, m.maxPanelScroll())
 		return m, nil
 	case tickMsg:
 		if m.mode == "panel" && len(m.panelArgs) > 0 &&
@@ -112,16 +111,6 @@ func (m *model) handlePanel(msg panelMsg) {
 	}
 }
 
-func cleanPanelText(body string) string {
-	body = ansi.Strip(body)
-	return strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) && r != '\n' {
-			return ' '
-		}
-		return r
-	}, body)
-}
-
 func (m model) handleKey(msg tea.KeyMsg) (model, tea.Cmd) {
 	switch m.mode {
 	case "panel":
@@ -151,7 +140,13 @@ func (m model) handlePanelKey(key string) model {
 	case "pgup":
 		m.panelScroll = max(0, m.panelScroll-max(1, m.pageSize()))
 	}
+	m.panelScroll = min(m.panelScroll, m.maxPanelScroll())
 	return m
+}
+
+func (m model) maxPanelScroll() int {
+	lines := len(strings.Split(m.panelBody, "\n"))
+	return max(0, lines-m.pageSize())
 }
 
 func (m model) handleConfirmKey(key string) (model, tea.Cmd) {
