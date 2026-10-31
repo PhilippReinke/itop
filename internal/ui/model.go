@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,10 +17,11 @@ var (
 )
 
 type listMsg struct {
-	kind    string
-	rows    []containercli.Resource
-	service containercli.ServiceState
-	err     error
+	requestID uint64
+	kind      string
+	rows      []containercli.Resource
+	service   containercli.ServiceState
+	err       error
 }
 
 type actionMsg struct {
@@ -38,7 +40,8 @@ type panelMsg struct {
 type tickMsg struct{}
 
 type model struct {
-	cli containercli.Runner
+	cli         containercli.Runner
+	listRequest *atomic.Uint64
 
 	view              int
 	pickerCursor      int
@@ -64,17 +67,19 @@ type model struct {
 	busy         bool
 	status       string
 	statusError  bool
+	actionError  bool
 	service      containercli.ServiceState
 	lastRefresh  time.Time
 }
 
 func NewModel(cli containercli.Runner) model {
 	return model{
-		cli:    cli,
-		rows:   make(map[string][]containercli.Resource),
-		width:  80,
-		height: 24,
-		status: "Loading containers…",
+		cli:         cli,
+		listRequest: new(atomic.Uint64),
+		rows:        make(map[string][]containercli.Resource),
+		width:       80,
+		height:      24,
+		status:      "Loading containers…",
 	}
 }
 
@@ -93,14 +98,21 @@ func (m model) kind() string {
 func (m model) load() tea.Cmd {
 	kind := m.kind()
 	cli := m.cli
+	requestID := m.listRequest.Add(1)
 	return func() tea.Msg {
 		service, err := containercli.CheckService(cli)
 		if service != containercli.ServiceRunning {
-			return listMsg{kind: kind, service: service, err: err}
+			return listMsg{
+				requestID: requestID, kind: kind,
+				service: service, err: err,
+			}
 		}
 
 		rows, err := containercli.List(cli, kind)
-		return listMsg{kind: kind, rows: rows, service: service, err: err}
+		return listMsg{
+			requestID: requestID, kind: kind,
+			rows: rows, service: service, err: err,
+		}
 	}
 }
 
@@ -186,6 +198,9 @@ func (m model) fetchPanel() tea.Cmd {
 }
 
 func (m *model) beginAction(args []string, label string, confirm bool) tea.Cmd {
+	if m.busy {
+		return nil
+	}
 	if confirm {
 		m.pending = args
 		m.pendingLabel = label
@@ -194,12 +209,17 @@ func (m *model) beginAction(args []string, label string, confirm bool) tea.Cmd {
 	}
 
 	m.busy = true
+	m.actionError = false
 	m.status = label + "…"
 	return m.operation(args, label)
 }
 
 func (m *model) startService() tea.Cmd {
+	if m.busy {
+		return nil
+	}
 	m.busy = true
+	m.actionError = false
 	m.status = "Starting Apple container service…"
 	cmd := exec.Command("container", "system", "start")
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {

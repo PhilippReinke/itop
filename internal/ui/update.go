@@ -47,21 +47,25 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleList(msg listMsg) model {
-	if msg.kind != m.kind() {
+	if msg.kind != m.kind() || msg.requestID != m.listRequest.Load() {
 		return m
 	}
 
 	m.service = msg.service
 	if msg.service == containercli.ServiceStopped {
 		m.rows[msg.kind] = nil
-		m.status = "Apple container service is stopped"
-		m.statusError = false
+		if !m.actionError {
+			m.status = "Apple container service is stopped"
+			m.statusError = false
+		}
 		return m
 	}
 	if msg.err != nil {
 		m.rows[msg.kind] = nil
-		m.status = msg.err.Error()
-		m.statusError = true
+		if !m.actionError {
+			m.status = msg.err.Error()
+			m.statusError = true
+		}
 		return m
 	}
 
@@ -69,8 +73,10 @@ func (m model) handleList(msg listMsg) model {
 	if m.cursor >= len(m.visible()) {
 		m.resetSelection()
 	}
-	m.status = fmt.Sprintf("%d %s", len(msg.rows), msg.kind)
-	m.statusError = false
+	if !m.actionError {
+		m.status = fmt.Sprintf("%d %s", len(msg.rows), msg.kind)
+		m.statusError = false
+	}
 	m.lastRefresh = time.Now()
 	return m
 }
@@ -80,9 +86,11 @@ func (m *model) handleAction(msg actionMsg) {
 	if msg.err != nil {
 		m.status = msg.err.Error()
 		m.statusError = true
+		m.actionError = true
 		return
 	}
 
+	m.actionError = false
 	m.status = msg.label + " complete"
 	if msg.output != "" {
 		m.status += " · " + oneLine(msg.output)
@@ -247,6 +255,9 @@ func (m model) submitInput() (model, tea.Cmd) {
 }
 
 func (m model) handleNormalKey(key string) (model, tea.Cmd) {
+	if m.busy && isActionKey(key) {
+		return m, nil
+	}
 	switch key {
 	case "q", "ctrl+c":
 		return m, tea.Quit
@@ -279,7 +290,11 @@ func (m model) handleNormalKey(key string) (model, tea.Cmd) {
 	case ":":
 		m.prompt("command")
 	case "esc":
-		if m.filter != "" {
+		if m.actionError {
+			m.actionError = false
+			m.statusError = false
+			m.status = "Ready"
+		} else if m.filter != "" {
 			m.filter = ""
 			m.resetSelection()
 		} else if len(m.history) > 0 {
@@ -318,6 +333,15 @@ func (m model) handleNormalKey(key string) (model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func isActionKey(key string) bool {
+	switch key {
+	case "S", "n", "enter", "i", "v", "l", "s", "x", "e", "d":
+		return true
+	default:
+		return false
+	}
 }
 
 func (m model) handleContainerAction(key string) (model, tea.Cmd) {
@@ -377,6 +401,7 @@ func (m *model) switchView(next int) tea.Cmd {
 		m.view = next
 	}
 	m.filter = ""
+	m.actionError = false
 	m.resetSelection()
 	return m.load()
 }

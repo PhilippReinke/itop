@@ -1,8 +1,13 @@
 [
   {
-    "displayReference": "docker.io/library/alpine:latest",
+    "id": "abcd",
     "configuration": {
-      "descriptor": { "digest": "sha256:abcd" }
-    }
+      "name": "docker.io/library/alpine:latest",
+      "descriptor": {
+        "digest": "sha256:abcd",
+        "size": 9218
+      }
+    },
+    "variants": []
   }
 ]

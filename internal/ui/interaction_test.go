@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"errors"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -126,6 +128,81 @@ func TestDeleteRequiresConfirmation(t *testing.T) {
 	}
 }
 
+func TestImagePageUsesReferenceForDelete(t *testing.T) {
+	fixture, err := os.ReadFile("../containercli/testdata/images.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &fakeRunner{
+		status: []byte(`{"status":"running"}`),
+		list:   fixture,
+	}
+	m := NewModel(runner)
+	m.view = 1
+	next, _ := m.Update(m.load()())
+	m = next.(model)
+	selected, err := m.selected()
+	if err != nil || selected.Name != "alpine" ||
+		selected.State != "latest" {
+		t.Fatalf("image row = %+v, error = %v", selected, err)
+	}
+	if !strings.Contains(m.View(), "TAG") ||
+		!strings.Contains(m.View(), "DIGEST") {
+		t.Fatal("image columns are missing")
+	}
+	m, _ = press(m, tea.KeyMsg{
+		Type: tea.KeyRunes, Runes: []rune{'d'},
+	})
+	m, command := press(m, tea.KeyMsg{
+		Type: tea.KeyRunes, Runes: []rune{'y'},
+	})
+	if command == nil {
+		t.Fatal("confirmed image delete did not run")
+	}
+	command()
+	want := "image delete docker.io/library/alpine:latest"
+	if got := runner.calls[len(runner.calls)-1]; got != want {
+		t.Fatalf("delete command = %q, want %q", got, want)
+	}
+}
+
+func TestActionErrorSurvivesListRefresh(t *testing.T) {
+	runner := &fakeRunner{
+		status: []byte(`{"status":"running"}`),
+		list:   []byte(`[]`),
+	}
+	m := NewModel(runner)
+	next, refresh := m.Update(actionMsg{
+		label: "Delete alpine", err: errors.New("image is in use"),
+	})
+	m = next.(model)
+	if refresh == nil {
+		t.Fatal("action did not refresh the list")
+	}
+	next, _ = m.Update(refresh())
+	m = next.(model)
+	if m.status != "image is in use" || !m.statusError {
+		t.Fatalf("action error was hidden: %q", m.status)
+	}
+	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.statusError || m.actionError {
+		t.Fatal("Escape did not dismiss the error")
+	}
+}
+
+func TestBusyActionCannotStartAnotherDelete(t *testing.T) {
+	m := NewModel(&fakeRunner{})
+	m.service = containercli.ServiceRunning
+	m.rows["containers"] = []containercli.Resource{{ID: "web"}}
+	m.busy = true
+	m, command := press(m, tea.KeyMsg{
+		Type: tea.KeyRunes, Runes: []rune{'d'},
+	})
+	if command != nil || m.mode == "confirm" {
+		t.Fatal("delete was accepted while another action was running")
+	}
+}
+
 func TestLateListFromPreviousViewIsIgnored(t *testing.T) {
 	m := NewModel(&fakeRunner{})
 	m.command("images")
@@ -139,6 +216,25 @@ func TestLateListFromPreviousViewIsIgnored(t *testing.T) {
 	if m.service != containercli.ServiceChecking ||
 		len(m.rows["containers"]) != 0 {
 		t.Fatalf("late list changed current view: %+v", m)
+	}
+}
+
+func TestOlderRefreshOfSameViewIsIgnored(t *testing.T) {
+	runner := &fakeRunner{
+		status: []byte(`{"status":"running"}`),
+		list:   []byte(`[{"id":"old"}]`),
+	}
+	m := NewModel(runner)
+	older := m.load()().(listMsg)
+	runner.list = []byte(`[{"id":"new"}]`)
+	newer := m.load()().(listMsg)
+	next, _ := m.Update(newer)
+	m = next.(model)
+	next, _ = m.Update(older)
+	m = next.(model)
+	if len(m.rows["containers"]) != 1 ||
+		m.rows["containers"][0].ID != "new" {
+		t.Fatalf("stale refresh replaced new rows: %+v", m.rows)
 	}
 }
 

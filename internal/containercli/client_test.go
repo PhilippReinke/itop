@@ -14,13 +14,20 @@ func TestDecodeAppleResourceShapes(t *testing.T) {
 	tests := []struct {
 		kind   string
 		id     string
+		name   string
 		state  string
 		detail string
 	}{
-		{"containers", "web", "running", "docker.io/library/nginx:latest"},
-		{"images", "docker.io/library/alpine:latest", "", "sha256:abcd"},
-		{"networks", "private", "", "192.168.100.0/24"},
-		{"volumes", "db", "1048576", "local"},
+		{
+			"containers", "web", "web", "running",
+			"docker.io/library/nginx:latest",
+		},
+		{
+			"images", "docker.io/library/alpine:latest",
+			"alpine", "latest", "sha256:abcd",
+		},
+		{"networks", "private", "private", "", "192.168.100.0/24"},
+		{"volumes", "db", "db", "1048576", "local"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.kind, func(t *testing.T) {
@@ -33,6 +40,7 @@ func TestDecodeAppleResourceShapes(t *testing.T) {
 				t.Fatal(err)
 			}
 			if len(rows) != 1 || rows[0].ID != tt.id ||
+				rows[0].Name != tt.name ||
 				rows[0].State != tt.state ||
 				rows[0].Detail != tt.detail {
 				t.Fatalf("rows = %#v", rows)
@@ -45,6 +53,31 @@ func TestUnknownResourceShapeIsError(t *testing.T) {
 	_, err := decodeResources([]byte(`[{"unexpected":"value"}]`), "containers")
 	if err == nil {
 		t.Fatal("unknown resource was silently dropped")
+	}
+}
+
+func TestUnrelatedListWrapperIsError(t *testing.T) {
+	_, err := decodeResources([]byte(`{"networks":[]}`), "images")
+	if err == nil {
+		t.Fatal("network wrapper was accepted as an image list")
+	}
+}
+
+func TestImageNameAndTag(t *testing.T) {
+	tests := []struct {
+		reference string
+		name      string
+		tag       string
+	}{
+		{"docker.io/library/alpine:latest", "alpine", "latest"},
+		{"registry.test:5000/team/app:v2", "registry.test:5000/team/app", "v2"},
+		{"registry.test/team/app@sha256:abcd", "registry.test/team/app", "<none>"},
+	}
+	for _, test := range tests {
+		name, tag := imageNameAndTag(test.reference)
+		if name != test.name || tag != test.tag {
+			t.Errorf("%q: name=%q tag=%q", test.reference, name, tag)
+		}
 	}
 }
 

@@ -161,11 +161,21 @@ func (m model) View() string {
 		nameW := min(36, max(12, inner*39/100))
 		stateW := min(18, max(10, inner*21/100))
 		detailW := max(1, inner-11-nameW-stateW)
+		stateHeader := "STATUS / SIZE"
+		detailHeader := "IMAGE / DETAIL"
+		if m.kind() == "images" {
+			available := max(3, inner-11)
+			nameW = max(1, available*5/10)
+			stateW = max(1, available*2/10)
+			detailW = max(1, available-nameW-stateW)
+			stateHeader = "TAG"
+			detailHeader = "DIGEST"
+		}
 		header := fmt.Sprintf(
 			"  %3s  %s  %s  %s",
 			"#", fitWidth("NAME", nameW),
-			fitWidth("STATUS / SIZE", stateW),
-			fitWidth("IMAGE / DETAIL", detailW),
+			fitWidth(stateHeader, stateW),
+			fitWidth(detailHeader, detailW),
 		)
 		b.WriteString(frameRow(dimStyle.Render(fitWidth(header, inner)), w) + "\n")
 		for slot := 0; slot < page; slot++ {
@@ -203,8 +213,12 @@ func (m model) View() string {
 			if i == m.cursor {
 				b.WriteString(frameRow(selectStyle.Render(plain), w) + "\n")
 			} else {
+				state := stateStyle(r.State).Render(stateCol)
+				if m.kind() == "images" {
+					state = textStyle.Render(stateCol)
+				}
 				body := prefix + textStyle.Render(nameCol) + "  " +
-					stateStyle(r.State).Render(stateCol) + "  " +
+					state + "  " +
 					dimStyle.Render(detailCol)
 				b.WriteString(frameRow(fitWidth(body, inner), w) + "\n")
 			}

@@ -38,10 +38,7 @@ func decodeResources(data []byte, kind string) ([]Resource, error) {
 	items, ok := value.([]any)
 	if !ok {
 		if wrapper, isObject := value.(map[string]any); isObject {
-			keys := []string{
-				"items", "containers", "images", "networks", "volumes",
-			}
-			for _, key := range keys {
+			for _, key := range []string{"items", kind} {
 				if candidate, isArray := lookup(wrapper, key).([]any); isArray {
 					items, ok = candidate, true
 					break
@@ -91,13 +88,16 @@ func parseResource(object map[string]any, kind string) Resource {
 			field(object, "image", "imageName"),
 		)
 	case "images":
-		resource.ID = field(
-			object, "displayReference", "reference", "name", "repoTags", "id",
+		resource.ID = first(
+			path(object, "configuration", "name"),
+			field(
+				object, "reference", "displayReference", "name", "id",
+			),
 		)
-		resource.Name = resource.ID
-		resource.State = field(object, "size", "sizeBytes")
+		resource.Name, resource.State = imageNameAndTag(resource.ID)
 		resource.Detail = first(
 			path(object, "configuration", "descriptor", "digest"),
+			path(object, "descriptor", "digest"),
 			field(object, "digest", "id"),
 		)
 	case "networks":
@@ -115,6 +115,22 @@ func parseResource(object map[string]any, kind string) Resource {
 		resource.Detail = field(object, "driver", "mountpoint")
 	}
 	return resource
+}
+
+func imageNameAndTag(reference string) (string, string) {
+	name := reference
+	tag := "<none>"
+	if at := strings.LastIndex(name, "@"); at >= 0 {
+		name = name[:at]
+	} else {
+		colon := strings.LastIndex(name, ":")
+		if colon > strings.LastIndex(name, "/") {
+			name, tag = name[:colon], name[colon+1:]
+		}
+	}
+	name = strings.TrimPrefix(name, "docker.io/library/")
+	name = strings.TrimPrefix(name, "docker.io/")
+	return name, tag
 }
 
 func first(values ...string) string {
