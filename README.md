@@ -4,9 +4,11 @@ A k9s-inspired TUI for
 [Apple container](https://github.com/apple/container), built with Go and
 Bubble Tea. It uses the installed `container` command and JSON list output.
 
+![itop showing the containers view](assets/screenshot.png)
+
 ## Install
 
-Requires Apple container and Go 1.24 or newer:
+Requires Apple container and Go 1.27.3 or newer:
 
 ```sh
 go run ./cmd/itop
