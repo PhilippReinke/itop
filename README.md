@@ -8,16 +8,14 @@ Bubble Tea. It uses the installed `container` command and JSON list output.
 
 ## Install
 
-Requires Apple container and Go 1.27.3 or newer:
+Requires Apple container and Go 1.27 or newer:
 
 ```sh
 go run ./cmd/itop
 # or: go build -o itop ./cmd/itop && ./itop
 ```
 
-Run `go run ./cmd/itop --help` for command line help. The root `main.go`
-also supports `go run main.go`. Once this structure is published, install
-with:
+Run `go run ./cmd/itop --help` for command line help. Install it with:
 
 ```sh
 go install github.com/philippreinke/itop/cmd/itop@latest
