@@ -39,7 +39,7 @@ func (m model) pickerView() string {
 			))
 	}
 	lines[len(lines)-2] = " " + accentStyle.Render(fitWidth(
-		"  j/k move   enter open   esc close", width-2,
+		"  tab/shift+tab move   enter open   esc close", width-2,
 	))
 	return strings.Join(lines, "\n")
 }

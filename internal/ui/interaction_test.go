@@ -82,6 +82,34 @@ func TestResourcePickerCancelAndTypedCommand(t *testing.T) {
 	}
 }
 
+func TestResourcePickerTabNavigation(t *testing.T) {
+	m := NewModel(&fakeRunner{})
+	m, _ = press(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
+	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	for _, step := range []struct {
+		key  tea.KeyType
+		want int
+	}{
+		{tea.KeyShiftTab, 0},
+		{tea.KeyTab, 1},
+		{tea.KeyTab, 2},
+		{tea.KeyTab, 3},
+		{tea.KeyTab, 3},
+		{tea.KeyShiftTab, 2},
+	} {
+		var command tea.Cmd
+		m, command = press(m, tea.KeyMsg{Type: step.key})
+		if m.mode != "picker" || m.pickerCursor != step.want || command != nil {
+			t.Fatalf("key %s: mode=%q cursor=%d, want %d",
+				tea.KeyMsg{Type: step.key}, m.mode, m.pickerCursor, step.want)
+		}
+	}
+	m, command := press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.mode != "" || m.kind() != "networks" || command == nil {
+		t.Fatal("Enter did not open the resource selected with Tab")
+	}
+}
+
 func TestResourcePickerFitsTerminal(t *testing.T) {
 	for _, size := range []struct{ width, height int }{
 		{80, 24}, {44, 14}, {30, 10},

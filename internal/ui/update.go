@@ -138,9 +138,9 @@ func (m model) handlePickerKey(key string) (model, tea.Cmd) {
 	switch key {
 	case "esc", "q":
 		m.mode = ""
-	case "j", "down":
+	case "j", "down", "tab":
 		m.pickerCursor = min(len(kinds)-1, m.pickerCursor+1)
-	case "k", "up":
+	case "k", "up", "shift+tab":
 		m.pickerCursor = max(0, m.pickerCursor-1)
 	case "enter":
 		m.mode = ""

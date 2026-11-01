@@ -264,6 +264,7 @@ func (m model) View() string {
 const helpText = `Navigation
   : enter        Pick a resource in an overlay
   :name          Open containers, images, networks, or volumes
+  tab/shift+tab  Move down/up in resource picker
   j/k or arrows  Move selection
   g / G          First / last item
   /              Filter current view
